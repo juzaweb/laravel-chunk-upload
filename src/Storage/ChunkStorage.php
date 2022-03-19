@@ -4,7 +4,8 @@ namespace Pion\Laravel\ChunkUpload\Storage;
 
 use Illuminate\Contracts\Filesystem\Filesystem as FilesystemContract;
 use Illuminate\Support\Collection;
-use League\Flysystem\Adapter\Local;
+use Illuminate\Filesystem\FilesystemAdapter;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 use League\Flysystem\FilesystemInterface;
 use Pion\Laravel\ChunkUpload\ChunkFile;
 use Pion\Laravel\ChunkUpload\Config\AbstractConfig;
@@ -51,10 +52,10 @@ class ChunkStorage
     /**
      * ChunkStorage constructor.
      *
-     * @param FilesystemContract $disk   the desired disk for chunk storage
+     * @param FilesystemAdapter  $disk   the desired disk for chunk storage
      * @param AbstractConfig     $config
      */
-    public function __construct(FilesystemContract $disk, $config)
+    public function __construct(FilesystemAdapter $disk, $config)
     {
         // save the config
         $this->config = $config;
@@ -62,18 +63,17 @@ class ChunkStorage
         // cache the storage path
         $this->disk = $disk;
 
-        $driver = $this->driver();
 
         // try to get the adapter
-        if (!method_exists($driver, 'getAdapter')) {
+        if (!method_exists($this->disk, 'getAdapter')) {
             throw new RuntimeException('FileSystem driver must have an adapter implemented');
         }
 
         // get the disk adapter
-        $this->diskAdapter = $driver->getAdapter();
+        $this->diskAdapter = $this->disk->getAdapter();
 
         // check if its local adapter
-        $this->isLocalDisk = $this->diskAdapter instanceof Local;
+        $this->isLocalDisk = $this->diskAdapter instanceof LocalFilesystemAdapter;
     }
 
     /**
@@ -86,7 +86,7 @@ class ChunkStorage
     public function getDiskPathPrefix()
     {
         if ($this->isLocalDisk) {
-            return $this->diskAdapter->getPathPrefix();
+            return $this->disk->path('');
         }
 
         throw new RuntimeException('The full path is not supported on current disk - local adapter supported only');
